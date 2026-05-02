@@ -22,9 +22,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import logging
 import os
 import sys
 from pathlib import Path
+
+logger = logging.getLogger(__name__)
 
 import numpy as np
 import torch
@@ -76,7 +79,13 @@ def _frames_to_latent_start(
             T.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5], inplace=True),
         ]
     )
-    vid = torch.stack([torch.from_numpy(f).permute(2, 0, 1) for f in frames_rgb], dim=0).float()
+    vid = torch.stack(
+        [
+            torch.from_numpy(f).permute(2, 0, 1).to(torch.uint8)
+            for f in frames_rgb
+        ],
+        dim=0,
+    )
     vid = preprocess(vid).unsqueeze(0).to(device)
     # encode all frames then take last-of-prefix
     b, f, c, h, w = vid.shape
@@ -172,6 +181,7 @@ def _load_rdt_candidates(ep: str, rdt_root: Path) -> list[np.ndarray]:
 
 
 def main():
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/evaluation/minireal/frame_ada.yaml")
     parser.add_argument(
@@ -215,7 +225,18 @@ def main():
     checkpoint = torch.load(ck_path, map_location="cpu")
     raw_sd = checkpoint.get("ema", checkpoint.get("model", checkpoint))
     model_dict = model.state_dict()
-    pretrained_dict = {k: v for k, v in raw_sd.items() if k in model_dict}
+    pretrained_dict = {}
+    for k, v in raw_sd.items():
+        if k in model_dict and model_dict[k].shape == v.shape:
+            pretrained_dict[k] = v
+        else:
+            mv = model_dict[k].shape if k in model_dict else "missing"
+            logger.info(
+                "Skipping %s: ckpt %s vs model %s",
+                k,
+                tuple(v.shape),
+                tuple(mv) if mv != "missing" else mv,
+            )
     model_dict.update(pretrained_dict)
     model.load_state_dict(model_dict)
     model.eval()

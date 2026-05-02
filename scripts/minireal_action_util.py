@@ -9,8 +9,6 @@ from typing import List, Sequence, Tuple
 
 import numpy as np
 
-from dataset.dataset_util import euler2rotm, rotm2euler
-
 
 def parse_csv_numeric(path: Path) -> Tuple[List[str], np.ndarray]:
     """Read CSV with header; return header row and float matrix (skips empty rows)."""
@@ -51,44 +49,18 @@ def states_to_delta_actions(
     accumulate_action: bool = False,
 ) -> np.ndarray:
     """
-    arm_states: [T, 6], gripper_states: [T] — same convention as Dataset_3D._get_all_actions
-    but returns [T-1, 7] (unnormalized; multiply by c_act_scaler in loader).
+    MiniReal 左臂状态为**关节角** [T,6]，不能用 Dataset_3D 的末端 xyz+rpy 相对运动。
+    返回 [T-1, 7]：关节差分（或相对首帧的关节差）+ 当前步 gripper；训练时再乘 c_act_scaler。
     """
     assert arm_states.shape[0] == gripper_states.shape[0]
-    action_num = arm_states.shape[0] - 1
-    action_dim = 7
-    action = np.zeros((action_num, action_dim), dtype=np.float64)
+    t = arm_states.shape[0]
+    action = np.zeros((t - 1, 7), dtype=np.float32)
     if accumulate_action:
-        first_xyz = arm_states[0, 0:3]
-        first_rpy = arm_states[0, 3:6]
-        first_rotm = euler2rotm(first_rpy)
-        for k in range(1, action_num + 1):
-            curr_xyz = arm_states[k, 0:3]
-            curr_rpy = arm_states[k, 3:6]
-            curr_gripper = gripper_states[k]
-            curr_rotm = euler2rotm(curr_rpy)
-            rel_xyz = np.dot(first_rotm.T, curr_xyz - first_xyz)
-            rel_rotm = first_rotm.T @ curr_rotm
-            rel_rpy = rotm2euler(rel_rotm)
-            action[k - 1, 0:3] = rel_xyz
-            action[k - 1, 3:6] = rel_rpy
-            action[k - 1, 6] = curr_gripper
+        action[:, :6] = (arm_states[1:, :6] - arm_states[0:1, :6]).astype(np.float32)
     else:
-        for k in range(1, action_num + 1):
-            prev_xyz = arm_states[k - 1, 0:3]
-            prev_rpy = arm_states[k - 1, 3:6]
-            prev_rotm = euler2rotm(prev_rpy)
-            curr_xyz = arm_states[k, 0:3]
-            curr_rpy = arm_states[k, 3:6]
-            curr_gripper = gripper_states[k]
-            curr_rotm = euler2rotm(curr_rpy)
-            rel_xyz = np.dot(prev_rotm.T, curr_xyz - prev_xyz)
-            rel_rotm = prev_rotm.T @ curr_rotm
-            rel_rpy = rotm2euler(rel_rotm)
-            action[k - 1, 0:3] = rel_xyz
-            action[k - 1, 3:6] = rel_rpy
-            action[k - 1, 6] = curr_gripper
-    return action.astype(np.float32)
+        action[:, :6] = arm_states[1:, :6] - arm_states[:-1, :6]
+    action[:, 6] = gripper_states[1:]
+    return action
 
 
 def joint_matrix_to_arm_states(joint_data: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:

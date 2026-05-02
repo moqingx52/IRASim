@@ -8,11 +8,13 @@ normalize: True
 mode: 'train'
 
 anno: 'minireal_train'
-debug: True
+# False = 全量 train/val；True = 仅 val 前 10 条冒烟（见 Mymodify.md）
+debug: False
 do_evaluate: False
 final_frame_ada: False
 
-evaluate_checkpoint: False
+# 相对 robotdata/opensource_robotdata；由 update_paths() 拼到 dataset_dir（Bridge frame_ada 初始化）
+evaluate_checkpoint: "bridge/checkpoints/frame_ada/0300000.pt"
 
 model: IRASim-XL/2
 num_frames: 16

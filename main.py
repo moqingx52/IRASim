@@ -194,13 +194,18 @@ def main(args):
             checkpoint = checkpoint["ema"]
 
         model_dict = model.state_dict()
-        # 1. filter out unnecessary keys
+        # 1. filter out unnecessary keys and mismatched shapes (e.g. future action_dim changes)
         pretrained_dict = {}
         for k, v in checkpoint.items():
-            if k in model_dict:
+            if k in model_dict and model_dict[k].shape == v.shape:
                 pretrained_dict[k] = v
             else:
-                logger.info('Ignoring: {}'.format(k))
+                mv = model_dict[k].shape if k in model_dict else "missing"
+                logger.info(
+                    "Skipping {}: ckpt {} vs model {}".format(
+                        k, tuple(v.shape), tuple(mv) if mv != "missing" else mv
+                    )
+                )
         logger.info('Successfully Load {}% original pretrained model weights '.format(len(pretrained_dict) / len(checkpoint.items()) * 100))
         # 2. overwrite entries in the existing state dict
         model_dict.update(pretrained_dict)
