@@ -82,7 +82,8 @@ def convert_episode(
     state_json = arm_states.tolist()
     grip_json = gripper.tolist()
 
-    dest_dir = out_video_root / split_name / ep
+    # out_video_root already ends with the split (e.g. .../videos/train); do not repeat it.
+    dest_dir = out_video_root / ep
     dest_dir.mkdir(parents=True, exist_ok=True)
     dest_rgb = dest_dir / "rgb.mp4"
     shutil.copy2(vid_src, dest_rgb)
