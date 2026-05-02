@@ -17,8 +17,9 @@ final_frame_ada: False
 evaluate_checkpoint: "bridge/checkpoints/frame_ada/0300000.pt"
 
 model: IRASim-XL/2
-num_frames: 16
-video_size: [256,320]
+# 低显存微调：少帧 + 低分辨率（可再改为 [96,96] 等，需高宽可被 8 整除以便 VAE）
+num_frames: 8
+video_size: [128, 128]
 learn_sigma: False
 extras: 3
 mask_frame_num: 1
@@ -27,6 +28,7 @@ learning_rate: 1e-4
 ckpt_every: 5000
 clip_max_norm: 0.1
 start_clip_iter: 0
+# 每卡 batch≈1（最省显存）；不要再叠加更大的 micro-batch
 local_batch_size: 1
 local_val_batch_size: 1
 max_train_steps: 50000
