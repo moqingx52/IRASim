@@ -14,6 +14,7 @@
 
 from dataset.dataset_2D import Dataset_2D
 from dataset.dataset_3D import Dataset_3D
+from dataset.minireal import Dataset_MiniReal
 
 def get_dataset(args):
     if args.dataset == 'languagetable':
@@ -30,5 +31,12 @@ def get_dataset(args):
             return Dataset_3D(args,mode='val'), Dataset_3D(args,mode='val')
         else:
             return Dataset_3D(args,mode='train'), Dataset_3D(args,mode='val')
+    elif args.dataset == 'minireal':
+        if args.do_evaluate:
+            return None, Dataset_MiniReal(args, mode=args.mode)
+        elif args.debug:
+            return Dataset_MiniReal(args, mode='val'), Dataset_MiniReal(args, mode='val')
+        else:
+            return Dataset_MiniReal(args, mode='train'), Dataset_MiniReal(args, mode='val')
     else:
         raise NotImplementedError(args.dataset)

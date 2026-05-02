@@ -6,3 +6,23 @@
 pretrained_models/stabilityai
 results
 wandb
+# 压缩包
+*.tar
+*.tar.gz
+*.zip
+*.rar
+
+# Python wheel
+*.whl
+
+# 数据集 / 大文件
+robotdata/opensource_robotdata/bridge/
+robotdata/opensource_robotdata/languagetable/
+
+# 视频 / tensor
+*.mp4
+*.pt
+
+# 其他
+__pycache__/
+*.pyc

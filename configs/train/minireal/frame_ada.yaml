@@ -1,0 +1,38 @@
+dataset: "minireal"
+sequence_interval: 1
+val_start_frame_interval: 16
+cam_ids: [0]
+accumulate_action: False
+pre_encode : False
+normalize: True
+mode: 'train'
+
+anno: 'minireal_train'
+debug: True
+do_evaluate: False
+final_frame_ada: False
+
+evaluate_checkpoint: False
+
+model: IRASim-XL/2
+num_frames: 16
+video_size: [256,320]
+learn_sigma: False
+extras: 3
+mask_frame_num: 1
+
+learning_rate: 1e-4
+ckpt_every: 5000
+clip_max_norm: 0.1
+start_clip_iter: 0
+local_batch_size: 1
+local_val_batch_size: 1
+max_train_steps: 50000
+global_seed: 3407
+num_workers: 4
+log_every: 50
+val_every: 1000
+gradient_accumulation_steps: 2
+attention_mode: 'math'
+
+resume_from_checkpoint : False
