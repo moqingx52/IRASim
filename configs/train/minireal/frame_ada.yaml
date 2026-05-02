@@ -34,7 +34,8 @@ global_seed: 3407
 num_workers: 4
 log_every: 50
 val_every: 1000
-gradient_accumulation_steps: 2
+# Effective global batch ≈ local_batch_size * nproc * gradient_accumulation_steps (8 GPUs: 1*8*1 = 8)
+gradient_accumulation_steps: 1
 attention_mode: 'math'
 
 resume_from_checkpoint : False
