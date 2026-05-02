@@ -222,7 +222,7 @@ def main():
     ck_path = args.evaluate_checkpoint
     if not ck_path or not Path(ck_path).is_file():
         raise FileNotFoundError(f"Checkpoint not found: {ck_path}")
-    checkpoint = torch.load(ck_path, map_location="cpu")
+    checkpoint = torch.load(ck_path, map_location="cpu", weights_only=False)
     raw_sd = checkpoint.get("ema", checkpoint.get("model", checkpoint))
     model_dict = model.state_dict()
     pretrained_dict = {}

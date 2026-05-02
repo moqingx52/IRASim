@@ -187,7 +187,11 @@ def main(args):
 
     assert not (args.evaluate_checkpoint == False and args.do_evaluate)
     if args.evaluate_checkpoint:
-        checkpoint = torch.load(args.evaluate_checkpoint, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            args.evaluate_checkpoint,
+            map_location=lambda storage, loc: storage,
+            weights_only=False,
+        )
         train_steps = int(args.evaluate_checkpoint.split('/')[-1][0:-3])
         if "ema" in checkpoint:  # supports checkpoints from train.py
             logger.info('Using ema ckpt!')
@@ -290,7 +294,11 @@ def main(args):
         path = dirs[-1]
         checkpoint_path = os.path.join(checkpoint_path,path) 
         logger.info(f"Resuming from checkpoint {checkpoint_path}")
-        checkpoint = torch.load(checkpoint_path, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            checkpoint_path,
+            map_location=lambda storage, loc: storage,
+            weights_only=False,
+        )
         if "ema" in checkpoint:  # supports checkpoints from train.py
             logger.info('Using ema ckpt!')
             # checkpoint = checkpoint["ema"]

@@ -160,7 +160,11 @@ def main(args,rank):
 
     # # use pretrained model?
     if args.pretrained:
-        checkpoint = torch.load(args.pretrained, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            args.pretrained,
+            map_location=lambda storage, loc: storage,
+            weights_only=False,
+        )
         if "ema" in checkpoint:  # supports checkpoints from train.py
             print('Using ema ckpt!')
             checkpoint = checkpoint["ema"]

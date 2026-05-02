@@ -47,7 +47,11 @@ def main(args,rank,thread,thread_num):
     os.makedirs(episode_videos_dir, exist_ok=True)
 
     if args.evaluate_checkpoint:
-        checkpoint = torch.load(args.evaluate_checkpoint, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            args.evaluate_checkpoint,
+            map_location=lambda storage, loc: storage,
+            weights_only=False,
+        )
         if "ema" in checkpoint:
             print('Using ema ckpt!')
             checkpoint = checkpoint["ema"]

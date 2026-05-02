@@ -101,7 +101,11 @@ def main(args):
     vae = AutoencoderKL.from_pretrained(args.vae_model_path, subfolder="vae").to(device)
 
     if args.evaluate_checkpoint:
-        checkpoint = torch.load(args.evaluate_checkpoint, map_location=lambda storage, loc: storage)
+        checkpoint = torch.load(
+            args.evaluate_checkpoint,
+            map_location=lambda storage, loc: storage,
+            weights_only=False,
+        )
         if "ema" in checkpoint: 
             print('Using ema ckpt!')
             checkpoint = checkpoint["ema"]
