@@ -12,6 +12,12 @@ Optional baseline:
 
 Exports:
   <out>/<episode>/{video.mp4,action.txt,joint.txt,instruction.txt,instructions.txt}
+
+video.mp4 is exactly 50 frames: frames 0–15 are reused from test video.mp4 at native
+resolution (conditioning prefix, not overwritten). Frames 16–49 are the first 34
+frames of the rollout candidate, resized to test resolution (e.g. 1280×720).
+Rollout still stores 50 generated frames; only the leading 34 align with this
+50-frame submission timeline.
 """
 
 from __future__ import annotations
@@ -30,6 +36,10 @@ if str(_ROOT) not in sys.path:
     sys.path.insert(0, str(_ROOT))
 
 from scripts.minireal_action_util import pick_instruction
+
+PREFIX_FRAMES = 16
+EXPORT_VIDEO_FRAMES = 50
+SUFFIX_FROM_ROLLOUT = EXPORT_VIDEO_FRAMES - PREFIX_FRAMES  # 34
 
 
 def load_frames(path: Path) -> np.ndarray:
@@ -81,11 +91,62 @@ def build_action_rows(base_id: float, action_body_51x26: np.ndarray) -> np.ndarr
     return np.concatenate([ids, action_body_51x26.astype(np.float64)], axis=1)
 
 
-def write_video_cv2(path: Path, frames: np.ndarray, fps: int) -> None:
+def read_video_prefix_frames_rgb(path: Path, n_frames: int = PREFIX_FRAMES) -> np.ndarray:
+    """First n_frames from video as RGB uint8 [n,H,W,3] at native resolution."""
+    import cv2
+
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open video: {path}")
+    frames: list[np.ndarray] = []
+    while len(frames) < n_frames:
+        ok, fr = cap.read()
+        if not ok:
+            break
+        frames.append(cv2.cvtColor(fr, cv2.COLOR_BGR2RGB))
+    cap.release()
+    if len(frames) < n_frames:
+        raise RuntimeError(f"{path}: need >= {n_frames} frames for conditioning prefix export, got {len(frames)}")
+    return np.stack(frames, axis=0).astype(np.uint8)
+
+
+def read_video_size_wh(path: Path) -> tuple[int, int]:
+    """Return (width, height) of the reference video."""
+    import cv2
+
+    cap = cv2.VideoCapture(str(path))
+    if not cap.isOpened():
+        raise RuntimeError(f"Cannot open reference video: {path}")
+    w = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    h = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+    if w <= 0 or h <= 0:
+        raise RuntimeError(f"Bad reference video size for {path}: {w}x{h}")
+    return w, h
+
+
+def resize_frames_cv2(frames: np.ndarray, target_wh: tuple[int, int]) -> np.ndarray:
+    import cv2
+
+    tw, th = target_wh
+    h, w = frames.shape[1], frames.shape[2]
+    if (w, h) == (tw, th):
+        return frames
+    return np.stack(
+        [cv2.resize(fr, (tw, th), interpolation=cv2.INTER_LANCZOS4) for fr in frames],
+        axis=0,
+    ).astype(np.uint8)
+
+
+def write_video_cv2(
+    path: Path, frames: np.ndarray, fps: int, target_wh: tuple[int, int] | None = None
+) -> None:
     import cv2
 
     if frames.ndim != 4 or frames.shape[-1] != 3:
         raise ValueError(f"frames shape {frames.shape}")
+    if target_wh is not None:
+        frames = resize_frames_cv2(frames, target_wh)
     h, w = frames.shape[1], frames.shape[2]
     path.parent.mkdir(parents=True, exist_ok=True)
     writer = cv2.VideoWriter(
@@ -162,7 +223,22 @@ def export_episode(
     (out_ep / "instruction.txt").write_text(instr + "\n", encoding="utf-8")
     (out_ep / "instructions.txt").write_text(instr + "\n", encoding="utf-8")
 
-    write_video_cv2(out_ep / "video.mp4", best_frames, fps=fps)
+    ref_vid = test_ep / "video.mp4"
+    target_wh = read_video_size_wh(ref_vid)
+    prefix_native = read_video_prefix_frames_rgb(ref_vid, PREFIX_FRAMES)
+    tw, th = target_wh
+    if (prefix_native.shape[2], prefix_native.shape[1]) != (tw, th):
+        prefix_native = resize_frames_cv2(prefix_native, target_wh)
+    if best_frames.shape[0] < SUFFIX_FROM_ROLLOUT:
+        raise ValueError(
+            f"{episode}: rollout frames need >= {SUFFIX_FROM_ROLLOUT} for 50-frame export, "
+            f"got {best_frames.shape[0]}"
+        )
+    gen_tail = best_frames[:SUFFIX_FROM_ROLLOUT]
+    generated_hw = resize_frames_cv2(gen_tail, target_wh)
+    full_video = np.concatenate([prefix_native, generated_hw], axis=0)
+    assert full_video.shape[0] == EXPORT_VIDEO_FRAMES
+    write_video_cv2(out_ep / "video.mp4", full_video, fps=fps, target_wh=None)
 
     meta = {
         "episode": episode,
@@ -170,6 +246,11 @@ def export_episode(
         "score": visual_score(best_frames),
         "fps": fps,
         "base_row_id": base_id,
+        "output_resolution": [target_wh[0], target_wh[1]],
+        "video_prefix_frames_native": PREFIX_FRAMES,
+        "video_from_rollout_frames": SUFFIX_FROM_ROLLOUT,
+        "video_total_frames": EXPORT_VIDEO_FRAMES,
+        "rollout_candidate_frames": int(best_frames.shape[0]),
     }
     (out_ep / "export_meta.json").write_text(json.dumps(meta, indent=2), encoding="utf-8")
     print(f"Exported {out_ep} (candidate={best_name})")

@@ -200,6 +200,12 @@ def main():
         default=0,
         help="torch device index cuda:N (default 0). For multi-GPU, prefer one process per GPU via CUDA_VISIBLE_DEVICES=K so each process uses cuda:0 on that physical card.",
     )
+    parser.add_argument(
+        "--video-size",
+        type=str,
+        default=None,
+        help="Override args.video_size as H,W. Example: 288,512 or 288x512. Must be divisible by 16.",
+    )
     args_ns = parser.parse_args()
 
     if not torch.cuda.is_available():
@@ -209,6 +215,15 @@ def main():
     device = torch.device(f"cuda:{args_ns.cuda_device}")
     cfg = argparse.Namespace(config=args_ns.config)
     args = get_args(cfg)
+    if args_ns.video_size:
+        raw = args_ns.video_size.replace("x", ",").replace(" ", "")
+        parts = [int(x) for x in raw.split(",") if x.strip()]
+        if len(parts) != 2:
+            raise ValueError(f"--video-size expects H,W, got {args_ns.video_size!r}")
+        h, w = parts[0], parts[1]
+        if h % 16 != 0 or w % 16 != 0:
+            raise ValueError(f"--video-size must be divisible by 16, got {h}x{w}")
+        args.video_size = [h, w]
     if args_ns.checkpoint:
         ck = Path(args_ns.checkpoint)
         if ck.is_file():

@@ -17,7 +17,9 @@ evaluate_checkpoint: 'minireal/checkpoints/frame_ada/0050000.pt'
 
 model: IRASim-XL/2
 num_frames: 16
-video_size: [256,320]
+# MiniReal test video is 1280x720 (16:9). Keep rollout 16:9 and divisible by 16.
+# Do NOT set to [720,1280] unless you have a checkpoint/GPU budget for full-res rollout.
+video_size: [288,512]
 learn_sigma: False
 extras: 3
 mask_frame_num: 1
