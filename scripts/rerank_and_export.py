@@ -11,7 +11,7 @@ Optional baseline:
   <rollouts>/<episode>/baseline_repeat/frames.npy  (repeat-last-frame)
 
 Exports:
-  <out>/submission/<episode>/{video.mp4,action.txt,joint.txt,instruction.txt}
+  <out>/<episode>/{video.mp4,action.txt,joint.txt,instruction.txt,instructions.txt}
 """
 
 from __future__ import annotations
