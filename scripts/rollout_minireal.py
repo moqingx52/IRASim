@@ -194,13 +194,19 @@ def main():
     parser.add_argument("--rdt-actions", type=str, required=True, help="Root of RDT numpy predictions")
     parser.add_argument("--out", type=str, default="irasim_rollouts")
     parser.add_argument("--episodes", type=str, default=None, help="Comma-separated episode ids; default all under test-data")
+    parser.add_argument(
+        "--cuda-device",
+        type=int,
+        default=0,
+        help="torch device index cuda:N (default 0). For multi-GPU, prefer one process per GPU via CUDA_VISIBLE_DEVICES=K so each process uses cuda:0 on that physical card.",
+    )
     args_ns = parser.parse_args()
 
     if not torch.cuda.is_available():
         print("CUDA required for IRASim rollout.", file=sys.stderr)
         sys.exit(1)
 
-    device = torch.device("cuda:0")
+    device = torch.device(f"cuda:{args_ns.cuda_device}")
     cfg = argparse.Namespace(config=args_ns.config)
     args = get_args(cfg)
     if args_ns.checkpoint:
